@@ -3,20 +3,37 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
+function Datatype(value) {
+    switch (typeof value) {
+        case 'string':
+            if (value.includes("::")) {
+                return value;
+            } else {
+                return "String::" + value;
+            }
+        case 'number':
+            return "int::" + value;
+        case 'boolean':
+            return "boolean::" + value;
+        case 'null':
+            return "null";
+        default:
+            return "json::" + JSON.stringify(value);
+    }
+}
 
-
-function JSframwork(name) {
+function JSframwork(name, callback) {
     this.filename = name;
     var that = this;
     this.methodsreadback = function (data) {
         for (var i = 0; i < data.Methods.length; i++) {
             if (data.Methods[i].startsWith("Sync_")) {
-                that[data.Methods[i].replace("Sync_","")] = new Function("\
+                that[data.Methods[i].replace("Sync_", "")] = new Function("\
                     var paras = [];\
                     for (var i = 0; i < arguments.length; i++){\
-                       paras.push(arguments[i]);\
+                       paras.push(Datatype(arguments[i]));\
                     }\n\
-                    var result = $.ajax({type: \"POST\",url: '" + that.filename + "',data:{run:'" + data.Methods[i].replace("Sync_","") + "',para:paras},async: false}).responseText;\
+                    var result = $.ajax({type: \"POST\",url: '" + that.filename + "',data:{run:'" + data.Methods[i].replace("Sync_", "") + "',para:paras},async: false}).responseText;\
                     return JSON.parse(result).Return;\n\
                 ");
             } else {
@@ -30,17 +47,20 @@ function JSframwork(name) {
                     };\
                     if(fun){\
                         for (var i = 0; i < arguments.length-1; i++){\
-                            paras.push(arguments[i]);\
+                            paras.push(Datatype(arguments[i]));\
                         }\
                         $.post('" + that.filename + "',{run:'" + data.Methods[i] + "',para:paras},callback);\n\
                     }else{\
                         for (var i = 0; i < arguments.length; i++){\
-                            paras.push(arguments[i]);\
+                            paras.push(Datatype(arguments[i]));\
                         }\
                         $.post('" + that.filename + "',{run:'" + data.Methods[i] + "',para:paras});\n\
                     }\
                 ");
             }
+        }
+        if (callback) {
+            callback(that);
         }
     };
     this.getMethods = function () {

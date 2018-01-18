@@ -51,7 +51,7 @@ public class Framework {
         JSONArray methodArray = new JSONArray();
         for (int i = 0; i < mlist.length; i++) {
             Method method = mlist[i];
-            methodArray.put(Modifier.isSynchronized(method.getModifiers())?"Sync_"+method.getName():method.getName());
+            methodArray.put(Modifier.isSynchronized(method.getModifiers()) ? "Sync_" + method.getName() : method.getName());
         }
         this.json.put("Methods", methodArray);
     }
@@ -90,7 +90,7 @@ public class Framework {
     }
 
     private static DataPill getRealObject(String s) throws Exception {
-        String data[] = s.split(":");
+        String data[] = s.split("::");
         String ss = data[0];
         if (data.length > 1) {
             if (ss.equalsIgnoreCase("String")) {
@@ -109,6 +109,8 @@ public class Framework {
                 return new DataPill(double.class, Double.parseDouble(data[1]));
             } else if (ss.equalsIgnoreCase("boolean")) {
                 return new DataPill(boolean.class, Boolean.parseBoolean(data[1]));
+            } else if (ss.equalsIgnoreCase("json")) {
+                return new DataPill(JSONObject.class,new JSONObject(data[1]));
             } else {
                 return new DataPill(Class.forName(ss), data[1]);
             }
