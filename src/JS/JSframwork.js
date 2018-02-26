@@ -27,7 +27,23 @@ function JSframwork(name, callback) {
     var that = this;
     this.methodsreadback = function (data) {
         for (var i = 0; i < data.Methods.length; i++) {
-            if (data.Methods[i].startsWith("Sync_")) {
+            if (data.Methods[i].startsWith("Multi_")) {
+                that[data.Methods[i].replace("Multi_", "")] = new Function("\
+                    var oldcallback = arguments[arguments.length-1];\
+                    var fun = (typeof oldcallback === 'function');\
+                    var callback = function (data){\
+                        var obj = JSON.parse(data);\
+                        oldcallback(obj.Return);\
+                    };\
+                    var data = arguments[0];\
+                    data.append('run','"+data.Methods[i].replace("Multi_", "")+"');\
+                    if(fun){\
+                        $.ajax({data: data,cache: false,contentType: false,processData: false,type: \"POST\",url: '" + that.filename + "',async: true,success: callback});\
+                    }else{\
+                        $.ajax({data: data,cache: false,contentType: false,processData: false,type: \"POST\",url: '" + that.filename + "',async: true});\
+                    }\
+                ");
+            } else if (data.Methods[i].startsWith("Sync_")) {
                 that[data.Methods[i].replace("Sync_", "")] = new Function("\
                     var paras = [];\
                     for (var i = 0; i < arguments.length; i++){\

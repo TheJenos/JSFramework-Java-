@@ -8,12 +8,7 @@ package Framework;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Enumeration;
-import java.util.Iterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -51,18 +46,37 @@ public class Framework {
         JSONArray methodArray = new JSONArray();
         for (int i = 0; i < mlist.length; i++) {
             Method method = mlist[i];
-            methodArray.put(Modifier.isSynchronized(method.getModifiers()) ? "Sync_" + method.getName() : method.getName());
+            if (method.getParameterCount()==1 && method.getParameterTypes()[0].equals(MultiPartReader.class)) {
+                methodArray.put("Multi_" + method.getName());
+            }else if(Modifier.isSynchronized(method.getModifiers())){
+                methodArray.put("Sync_" + method.getName());
+            }else{
+                methodArray.put(method.getName());
+            }
         }
         this.json.put("Methods", methodArray);
     }
 
     public void getData() {
-        if (requ.getParameter("run") != null) {
+        if (requ.getContentType() != null && requ.getContentType().contains("multipart/form-data")) {
+            MultiPartReader mpr = new MultiPartReader(requ);
+            runMethods_Multi(mpr.getSingleStringParameter("run"), mpr);
+        } else if (requ.getParameter("run") != null) {
             runMethods(requ.getParameter("run"));
         } else {
             sendDataToJSON();
         }
         out.println(json.toString());
+    }
+
+    private void runMethods_Multi(String parameter, MultiPartReader mpr) {
+        try {
+            Object Return = c.getMethod(parameter, mpr.getClass()).invoke(this.obj, mpr);
+            this.json.put("MethodName", parameter);
+            this.json.put("Return", Return);
+        } catch (Exception ex) {
+            this.json.put("Return", ex.toString());
+        }
     }
 
     private void runMethods(String parameter) {
@@ -110,7 +124,7 @@ public class Framework {
             } else if (ss.equalsIgnoreCase("boolean")) {
                 return new DataPill(boolean.class, Boolean.parseBoolean(data[1]));
             } else if (ss.equalsIgnoreCase("json")) {
-                return new DataPill(JSONObject.class,new JSONObject(data[1]));
+                return new DataPill(JSONObject.class, new JSONObject(data[1]));
             } else {
                 return new DataPill(Class.forName(ss), data[1]);
             }
