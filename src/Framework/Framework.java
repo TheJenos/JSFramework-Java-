@@ -24,14 +24,18 @@ public class Framework {
     private HttpServletResponse resp;
     private JSONObject json = new JSONObject();
     private PrintWriter out;
+    private boolean debug;
 
-    public Framework(JSFramwork obj, HttpServletRequest resq, HttpServletResponse resp) {
+    public Framework(JSFramwork obj, HttpServletRequest resq, HttpServletResponse resp, boolean debug) {
         try {
             this.obj = obj;
             this.c = obj.getClass();
             this.requ = resq;
             this.resp = resp;
-            this.json.put("ClassName", this.c.getName());
+            this.debug = debug;
+            if (this.debug) {
+                this.json.put("ClassName", this.c.getName());
+            }
             out = this.resp.getWriter();
             obj.setRequ(resq);
             obj.setResp(resp);
@@ -46,11 +50,11 @@ public class Framework {
         JSONArray methodArray = new JSONArray();
         for (int i = 0; i < mlist.length; i++) {
             Method method = mlist[i];
-            if (method.getParameterCount()==1 && method.getParameterTypes()[0].equals(MultiPartReader.class)) {
+            if (method.getParameterCount() == 1 && method.getParameterTypes()[0].equals(MultiPartReader.class)) {
                 methodArray.put("Multi_" + method.getName());
-            }else if(Modifier.isSynchronized(method.getModifiers())){
+            } else if (Modifier.isSynchronized(method.getModifiers())) {
                 methodArray.put("Sync_" + method.getName());
-            }else{
+            } else {
                 methodArray.put(method.getName());
             }
         }
@@ -66,23 +70,29 @@ public class Framework {
         } else {
             sendDataToJSON();
         }
-        out.println(json.toString());
+        if (json.toString().length() > 6) {
+            out.println(json.toString());
+        }
     }
 
     private void runMethods_Multi(String parameter, MultiPartReader mpr) {
         try {
             Object Return = c.getMethod(parameter, mpr.getClass()).invoke(this.obj, mpr);
-            this.json.put("MethodName", parameter);
+            if (this.debug) {
+                this.json.put("MethodName", parameter);
+            }
             this.json.put("Return", Return);
         } catch (Exception ex) {
-            this.json.put("Return", ex.toString());
+            this.json.put("Return", ex.getMessage() + ":" + stackTraceToString(ex));
         }
     }
 
     private void runMethods(String parameter) {
         try {
             Object Return = null;
-            this.json.put("MethodName", parameter);
+            if (this.debug) {
+                this.json.put("MethodName", parameter);
+            }
             if (requ.getParameter("para[]") != null) {
                 String paraS[] = requ.getParameterValues("para[]");
                 Class paraC[] = new Class[paraS.length];
@@ -99,8 +109,17 @@ public class Framework {
             }
             this.json.put("Return", Return);
         } catch (Exception ex) {
-            this.json.put("Return", ex.toString());
+            this.json.put("Return", ex.getMessage() + ":" + stackTraceToString(ex));
         }
+    }
+
+    public String stackTraceToString(Throwable e) {
+        StringBuilder sb = new StringBuilder();
+        for (StackTraceElement element : e.getStackTrace()) {
+            sb.append(element.toString());
+            sb.append("\n");
+        }
+        return sb.toString();
     }
 
     private static DataPill getRealObject(String s) throws Exception {
