@@ -11,6 +11,7 @@ function Datatype(value) {
             } else {
                 return "String::" + value;
             }
+            break;
         case 'number':
             return "int::" + value;
         case 'boolean':
@@ -22,56 +23,137 @@ function Datatype(value) {
     }
 }
 
+function handlefile(xhr) {
+    var filename = "";
+    var disposition = xhr.getResponseHeader('Content-Disposition');
+    if (disposition && disposition.indexOf('attachment') !== -1) {
+        var filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        var matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1])
+            filename = matches[1].replace(/['"]/g, '');
+    }
+    var file = window.URL.createObjectURL(xhr.response);
+    var a = document.createElement("a");
+    a.href = file;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+}
+
+function erlog(val, dd) {
+    var data = JSON.parse(dd);
+    data.run = val;
+    if (data.ErrorMsg) {
+        showError(data.ErrorMsg);
+    }
+}
+
 function JSframwork(name, callback) {
     this.filename = name;
     var that = this;
     this.methodsreadback = function (data) {
         for (var i = 0; i < data.Methods.length; i++) {
+            var blobdata = data.Methods[i].endsWith("_File");
             if (data.Methods[i].startsWith("Multi_")) {
-                that[data.Methods[i].replace("Multi_", "")] = new Function("\
+                var methodname = data.Methods[i].replace("Multi_", "");
+                if (blobdata)
+                    methodname = methodname.replace("_File", "");
+                that[methodname] = new Function("\
                     var oldcallback = arguments[arguments.length-1];\
                     var fun = (typeof oldcallback === 'function');\
-                    var callback = function (data){\
-                        var obj = JSON.parse(data);\
-                        oldcallback(obj.Return);\
-                    };\
-                    var data = arguments[0];\
-                    data.append('run','"+data.Methods[i].replace("Multi_", "")+"');\
-                    if(fun){\
-                        $.ajax({data: data,cache: false,contentType: false,processData: false,type: \"POST\",url: '" + that.filename + "',async: true,success: callback});\
-                    }else{\
-                        $.ajax({data: data,cache: false,contentType: false,processData: false,type: \"POST\",url: '" + that.filename + "',async: true});\
+                    var datagg = arguments[0];\
+                    var data = new FormData();\
+                    for ( var key in datagg ) {\
+                        data.append(key, datagg[key]['$file']?datagg[key]['$file']:datagg[key]);\
                     }\
+                    data.append('run','" + methodname + "');\
+                    var callback = function (respdata){\
+                        if(data.length<2) return oldcallback();\
+                        if (typeof(respdata.response)=='object') {\
+                            handlefile(respdata);\
+                            oldcallback(true);\
+                        }else{\
+                            var obj = JSON.parse(respdata.responseText);\
+                            erlog('" + methodname + "',respdata.responseText);\
+                            oldcallback(obj.Return);\
+                        }\
+                    };\
+                    var requset = new XMLHttpRequest();\
+                    " + (blobdata ? "requset.responseType='blob';" : "") + "\
+                    requset.onreadystatechange = function () {\
+                        if (requset.status == 200 && requset.readyState == 4) {\
+                            if(fun){\
+                                callback(requset);\
+                            }\
+                        }\
+                    };\
+                    requset.open('POST','" + that.filename + "', true);\
+                    requset.send(data);\
                 ");
             } else if (data.Methods[i].startsWith("Sync_")) {
-                that[data.Methods[i].replace("Sync_", "")] = new Function("\
-                    var paras = [];\
+                var methodname = data.Methods[i].replace("Sync_", "");
+                if (blobdata)
+                    methodname = methodname.replace("_File", "");
+                that[methodname] = new Function("\
+                    var paras = '';\
                     for (var i = 0; i < arguments.length; i++){\
-                       paras.push(Datatype(arguments[i]));\
-                    }\n\
-                    var result = $.ajax({type: \"POST\",url: '" + that.filename + "',data:{run:'" + data.Methods[i].replace("Sync_", "") + "',para:paras},async: false}).responseText;\
-                    return JSON.parse(result).Return;\n\
+                       paras += '&para[]='+Datatype(arguments[i]);\
+                    }\
+                    var data = 'run=" + methodname + "'+paras;\
+                    var requset = new XMLHttpRequest();\
+                    " + (blobdata ? "requset.responseType='blob';" : "") + "\
+                    requset.open('POST','" + that.filename + "', false);\
+                    requset.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');\
+                    requset.send(data);\
+                    if (typeof(requset.response)=='object') {\
+                        handlefile(requset);\
+                        return true;\
+                    }else{\
+                        erlog('" + methodname + "',requset.responseText);\
+                        return JSON.parse(requset.responseText).Return;\
+                    }\
                 ");
             } else {
-                that[data.Methods[i]] = new Function("\
-                    var paras = [];\
+                var methodname = data.Methods[i];
+                if (blobdata)
+                    methodname = methodname.replace("_File", "");
+                that[methodname] = new Function("\
+                    var paras = '';\
                     var oldcallback = arguments[arguments.length-1];\
                     var fun = (typeof oldcallback === 'function');\
-                    var callback = function (data){\
-                        var obj = JSON.parse(data);\
-                        oldcallback(obj.Return);\
+                    var callback = function (respdata){\
+                        if(data.length<2) return oldcallback();\
+                        if (typeof(respdata.response)=='object') {\
+                            handlefile(respdata);\
+                            oldcallback(true);\
+                        }else{\
+                            var obj = JSON.parse(respdata.responseText);\
+                            erlog('" + methodname + "',respdata.responseText);\
+                            oldcallback(obj.Return);\
+                        }\
                     };\
                     if(fun){\
                         for (var i = 0; i < arguments.length-1; i++){\
-                            paras.push(Datatype(arguments[i]));\
+                            paras += '&para[]='+Datatype(arguments[i]);\
                         }\
-                        $.post('" + that.filename + "',{run:'" + data.Methods[i] + "',para:paras},callback);\n\
                     }else{\
                         for (var i = 0; i < arguments.length; i++){\
-                            paras.push(Datatype(arguments[i]));\
+                            paras += '&para[]='+Datatype(arguments[i]);\
                         }\
-                        $.post('" + that.filename + "',{run:'" + data.Methods[i] + "',para:paras});\n\
                     }\
+                    var data = 'run=" + methodname + "'+paras;\
+                    var requset = new XMLHttpRequest();\
+                    " + (blobdata ? "requset.responseType='blob';" : "") + "\
+                    requset.onreadystatechange = function () {\
+                        if (requset.status == 200 && requset.readyState == 4) {\
+                            if(fun){\
+                                callback(requset);\
+                            }\
+                        }\
+                    };\
+                    requset.open('POST','" + that.filename + "', true);\
+                    requset.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');\
+                    requset.send(data);\
                 ");
             }
         }
@@ -80,7 +162,15 @@ function JSframwork(name, callback) {
         }
     };
     this.getMethods = function () {
-        $.getJSON(this.filename, this.methodsreadback);
+        var requset = new XMLHttpRequest();
+        requset.onreadystatechange = function () {
+            if (requset.status == 200 && requset.readyState == 4) {
+                var gg = requset.responseText;
+                that.methodsreadback(JSON.parse(gg));
+            }
+        };
+        requset.open("GET", this.filename, false);
+        requset.send();
     };
     this.getMethods();
 }

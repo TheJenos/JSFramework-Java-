@@ -20,8 +20,8 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
  */
 public class MultiPartReader {
 
-    int maxFileSize = 5000 * 1024;
-    int maxMemSize = 5000 * 1024;
+    int maxFileSize = 10000000;
+    int maxMemSize = 10000000;
 
     private Map<String, List<FileItem>> map = null;
 

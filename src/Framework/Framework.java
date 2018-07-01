@@ -5,6 +5,7 @@
  */
 package Framework;
 
+import java.io.File;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -50,12 +51,13 @@ public class Framework {
         JSONArray methodArray = new JSONArray();
         for (int i = 0; i < mlist.length; i++) {
             Method method = mlist[i];
+            boolean file = method.getReturnType().isAssignableFrom(File.class);
             if (method.getParameterCount() == 1 && method.getParameterTypes()[0].equals(MultiPartReader.class)) {
-                methodArray.put("Multi_" + method.getName());
+                methodArray.put("Multi_" + method.getName() + (file ? "_File" : ""));
             } else if (Modifier.isSynchronized(method.getModifiers())) {
-                methodArray.put("Sync_" + method.getName());
+                methodArray.put("Sync_" + method.getName() + (file ? "_File" : ""));
             } else {
-                methodArray.put(method.getName());
+                methodArray.put(method.getName() + (file ? "_File" : ""));
             }
         }
         this.json.put("Methods", methodArray);
@@ -81,9 +83,23 @@ public class Framework {
             if (this.debug) {
                 this.json.put("MethodName", parameter);
             }
-            this.json.put("Return", Return);
+            if (Return instanceof File) {
+                File ff = (File) Return;
+                this.obj.getResp().setHeader("Content-Disposition", "attachment; filename=\"" + ff.getName()+ "\"");
+                java.io.FileInputStream fileInputStream = new java.io.FileInputStream(ff);
+                int i;
+                while ((i = fileInputStream.read()) != -1) {
+                    this.obj.getResp().getWriter().write(i);
+                }
+                fileInputStream.close();
+            } else {
+                this.json.put("Return", Return);
+            }
         } catch (Exception ex) {
-            this.json.put("Return", ex.getMessage() + ":" + stackTraceToString(ex));
+            this.json.put("ErrorMsg", ex.getCause().getMessage());
+            if (this.debug) {
+                this.json.put("Error", stackTraceToString(ex.getCause()));
+            }
         }
     }
 
@@ -107,9 +123,23 @@ public class Framework {
             } else {
                 Return = c.getMethod(parameter, null).invoke(this.obj, null);
             }
-            this.json.put("Return", Return);
+            if (Return instanceof File) {
+                File ff = (File) Return;
+                this.obj.getResp().setHeader("Content-Disposition", "attachment; filename=\"" + ff.getName()+ "\"");
+                java.io.FileInputStream fileInputStream = new java.io.FileInputStream(ff);
+                int i;
+                while ((i = fileInputStream.read()) != -1) {
+                    this.obj.getResp().getWriter().write(i);
+                }
+                fileInputStream.close();
+            } else {
+                this.json.put("Return", Return);
+            }
         } catch (Exception ex) {
-            this.json.put("Return", ex.getMessage() + ":" + stackTraceToString(ex));
+            this.json.put("ErrorMsg", ex.getCause().getMessage());
+            if (this.debug) {
+                this.json.put("Error", stackTraceToString(ex.getCause()));
+            }
         }
     }
 
