@@ -51,7 +51,7 @@ public class Framework {
         JSONArray methodArray = new JSONArray();
         for (int i = 0; i < mlist.length; i++) {
             Method method = mlist[i];
-            boolean file = method.getReturnType().isAssignableFrom(File.class);
+            boolean file = method.getReturnType().equals(File.class);
             if (method.getParameterCount() == 1 && method.getParameterTypes()[0].equals(MultiPartReader.class)) {
                 methodArray.put("Multi_" + method.getName() + (file ? "_File" : ""));
             } else if (Modifier.isSynchronized(method.getModifiers())) {

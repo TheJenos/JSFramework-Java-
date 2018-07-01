@@ -68,11 +68,11 @@ function JSframwork(name, callback) {
                     }\
                     data.append('run','" + methodname + "');\
                     var callback = function (respdata){\
-                        if(data.length<2) return oldcallback();\
                         if (typeof(respdata.response)=='object') {\
                             handlefile(respdata);\
                             oldcallback(true);\
                         }else{\
+                            if(respdata.responseText.length<2) return oldcallback();\
                             var obj = JSON.parse(respdata.responseText);\
                             erlog('" + methodname + "',respdata.responseText);\
                             oldcallback(obj.Return);\
@@ -122,11 +122,11 @@ function JSframwork(name, callback) {
                     var oldcallback = arguments[arguments.length-1];\
                     var fun = (typeof oldcallback === 'function');\
                     var callback = function (respdata){\
-                        if(data.length<2) return oldcallback();\
                         if (typeof(respdata.response)=='object') {\
                             handlefile(respdata);\
                             oldcallback(true);\
                         }else{\
+                            if(respdata.responseText.length<2) return oldcallback();\
                             var obj = JSON.parse(respdata.responseText);\
                             erlog('" + methodname + "',respdata.responseText);\
                             oldcallback(obj.Return);\
