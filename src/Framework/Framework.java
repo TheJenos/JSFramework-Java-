@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URLDecoder;
 import javax.servlet.http.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -85,7 +86,7 @@ public class Framework {
             }
             if (Return instanceof File) {
                 File ff = (File) Return;
-                this.obj.getResp().setHeader("Content-Disposition", "attachment; filename=\"" + ff.getName()+ "\"");
+                this.obj.getResp().setHeader("Content-Disposition", "attachment; filename=\"" + ff.getName() + "\"");
                 java.io.FileInputStream fileInputStream = new java.io.FileInputStream(ff);
                 int i;
                 while ((i = fileInputStream.read()) != -1) {
@@ -123,9 +124,12 @@ public class Framework {
             } else {
                 Return = c.getMethod(parameter, null).invoke(this.obj, null);
             }
+            if (Return == null) {
+                return;
+            }
             if (Return instanceof File) {
                 File ff = (File) Return;
-                this.obj.getResp().setHeader("Content-Disposition", "attachment; filename=\"" + ff.getName()+ "\"");
+                this.obj.getResp().setHeader("Content-Disposition", "attachment; filename=\"" + ff.getName() + "\"");
                 java.io.FileInputStream fileInputStream = new java.io.FileInputStream(ff);
                 int i;
                 while ((i = fileInputStream.read()) != -1) {
@@ -136,7 +140,12 @@ public class Framework {
                 this.json.put("Return", Return);
             }
         } catch (Exception ex) {
-            this.json.put("ErrorMsg", ex.getCause().getMessage());
+            if (ex.getCause() != null) {
+                this.json.put("ErrorMsg", ex.getCause().getMessage());
+            } else {
+                this.json.put("ErrorMsg", ex.getMessage());
+                ex.printStackTrace();
+            }
             if (this.debug) {
                 this.json.put("Error", stackTraceToString(ex.getCause()));
             }
@@ -153,6 +162,9 @@ public class Framework {
     }
 
     private static DataPill getRealObject(String s) throws Exception {
+        s = s.replaceAll("%(?![0-9a-fA-F]{2})", "%25");
+        s = s.replaceAll("\\+", "%2B");
+        s = URLDecoder.decode(s, "UTF-8");
         String data[] = s.split("::");
         String ss = data[0];
         if (data.length > 1) {
